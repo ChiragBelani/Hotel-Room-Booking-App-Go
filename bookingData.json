@@ -1,0 +1,18 @@
+{
+  "201": {
+    "Username": "chirag",
+    "Name": "khush",
+    "Email": "khushbelani@gmail.com",
+    "RoomType": "Double",
+    "RoomNo": 201,
+    "Nights": 9
+  },
+  "202": {
+    "Username": "chirag",
+    "Name": "himanshi",
+    "Email": "himanshi@gmail.com",
+    "RoomType": "Double",
+    "RoomNo": 202,
+    "Nights": 8
+  }
+}
