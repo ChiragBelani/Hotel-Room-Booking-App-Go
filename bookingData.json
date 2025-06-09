@@ -1,18 +1,32 @@
 {
+  "102": {
+    "Username": "Chirag123",
+    "Name": "deepak",
+    "Email": "deepak@gmail.com",
+    "RoomType": "Single",
+    "RoomNo": 102,
+    "CheckIn": "2025-06-09T13:06:04.843465+05:30",
+    "CheckOut": "2025-06-17T13:06:04.843465+05:30",
+    "Nights": 8
+  },
   "201": {
-    "Username": "chirag",
-    "Name": "khush",
-    "Email": "khushbelani@gmail.com",
+    "Username": "Chirag123",
+    "Name": "Chirag",
+    "Email": "chirag@gmail.com",
     "RoomType": "Double",
     "RoomNo": 201,
-    "Nights": 9
+    "CheckIn": "2025-06-09T12:58:30.023003+05:30",
+    "CheckOut": "2025-06-12T12:58:30.023003+05:30",
+    "Nights": 3
   },
-  "202": {
-    "Username": "chirag",
-    "Name": "himanshi",
-    "Email": "himanshi@gmail.com",
-    "RoomType": "Double",
-    "RoomNo": 202,
-    "Nights": 8
+  "301": {
+    "Username": "Chirag123",
+    "Name": "HImanshi",
+    "Email": "himanshibelani@gmail.com",
+    "RoomType": "Suite",
+    "RoomNo": 301,
+    "CheckIn": "2025-06-09T13:04:15.237098+05:30",
+    "CheckOut": "2025-06-15T13:04:15.237098+05:30",
+    "Nights": 6
   }
 }

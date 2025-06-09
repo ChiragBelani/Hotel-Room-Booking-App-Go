@@ -1,6 +1,7 @@
 {
-  "admin": "admin001",
-  "chirag": "chirag",
-  "himanshi": "himanshi",
-  "khush": "khush"
+  "Chirag123": "$2a$10$ftErMgNaKjwhzVnz5rfuqe3NlhfRnIdf/BPl.d7V8IR..hybbgqkK",
+  "admin": "admin",
+  "chirag": "$2a$10$ByszuMJwX5MxrraR19mxrOK8eIB8loLTiZHLSPRsi5Dw.0knydPaK",
+  "deepak": "$2a$10$XaBP1QXTHOoZpy303OqkH.I5C6sUwVvO9OEu37PPqMuUYfG6DSnGW",
+  "khush": "$2a$10$gKLldgtQ.93sjYD1peUs/eptAjiRA0C0DNxt9NZ.2AnuKy1UbprKq"
 }

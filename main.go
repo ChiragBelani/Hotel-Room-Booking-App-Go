@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	// "strings"
 	//"os/user"
 	"sync"
 
@@ -11,6 +12,8 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 
@@ -27,6 +30,7 @@ var suiteRoomNoIdx = 0
 var singleBookarray = [5]int{0,0,0,0,0}
 var doubleBookarray = [5]int{0,0,0,0,0}
 var suiteBookarray = [5]int{0,0,0,0,0}
+
 
 var mu = sync.Mutex{}
 
@@ -54,6 +58,7 @@ func main() {
 			viewUserBookings(username)
 		case 3:
 			viewUserBookings(username)
+			mu.Lock()
 			cancelBooking(username)
 		case 4:
 			username = userLogin()
@@ -63,21 +68,23 @@ func main() {
 }
 
 func showMenu(username string) {
-	fmt.Printf("\n#########################################################################")
+	fmt.Println("\n#########################################################################")
 	fmt.Println("🏨 Welcome to the Hotel Booking System")
 	fmt.Println("Logged in as:", username)
 	fmt.Println("1. Book a Room")
 	fmt.Println("2. View Your Bookings")
 	fmt.Println("3. Cancel a Booking")
 	fmt.Println("4. Logout")
-	fmt.Printf("#########################################################################\n")
+	fmt.Println("#########################################################################")
 }
 
 func bookRoom(username string) {
 	
 	var name, email, roomType string
-	var nights int
-	var roomNo int
+
+	var roomNo, nights int
+	var checkIn time.Time
+	var checkOut time.Time
 
 	fmt.Print("Enter your name: ")
 	fmt.Scan(&name)
@@ -90,8 +97,12 @@ func bookRoom(username string) {
 		return
 	}
 
-	fmt.Print("Enter number of nights: ")
+	fmt.Print("Enter the nights: ")
 	fmt.Scan(&nights)
+
+	checkIn = time.Now()
+	checkOut = checkIn.AddDate(0, 0, nights)
+	
 
 	if !validate.InputValidation(name, email, roomType, nights){
 		fmt.Println("Invalid input. Please try again.")
@@ -101,12 +112,15 @@ func bookRoom(username string) {
 	roomNo = getRoomNo(roomType)
 
 	fmt.Printf("Booking a %s room for %s (%s) for %d nights.\n", roomType, name, email, nights)
+	fmt.Print("CheckIn date: ", checkIn, "\nCheckOut date: ", checkOut, "\n")
 	var book = booking.Booking{
 		Username: username, // Placeholder for username, can be replaced with actual user data
 		Name:     name,
 		Email:    email,
 		RoomType: roomType,
 		RoomNo:   roomNo,
+		CheckIn:  checkIn,
+		CheckOut: checkOut,
 		Nights:   nights,
 	}
 	mu.Lock() // Lock the mutex to ensure thread safety
@@ -181,6 +195,7 @@ func viewUserBookings(username string) {
 		if booking.Username == username {
 			found = true
 			fmt.Printf("Room No: %d, Name: %s, Email: %s, Room Type: %s, Nights: %d\n", roomNo, booking.Name, booking.Email, booking.RoomType, booking.Nights)
+			fmt.Print("CheckIn date: ", booking.CheckIn, "\nCheckOut date: ", booking.CheckOut, "\n")
 		}
 	}
 	if !found {
@@ -193,6 +208,7 @@ func viewBookings() {
 	var totalRevenue int = 0
 	for roomNo, booking := range bookings {
 		fmt.Printf("Booked by Username %v.\nRoom No: %d, Name: %s, Email: %s, Room Type: %s, Nights: %d\n",booking.Username, roomNo, booking.Name, booking.Email, booking.RoomType, booking.Nights)
+		fmt.Print("CheckIn date: ", booking.CheckIn, "\nCheckOut date: ", booking.CheckOut, "\n")
 		if booking.RoomType == "Single" {
 			totalRevenue = totalRevenue + (booking.Nights * 100)
 		} else if booking.RoomType == "Double" {
@@ -203,8 +219,12 @@ func viewBookings() {
 			fmt.Println("Invalid room type in booking.")
 		}
 	}
-	fmt.Printf("Total Revenue from Bookings: $%d\n", totalRevenue)
+	fmt.Printf("\nTotal Revenue from Bookings: $%d\n\n", totalRevenue)
+
+	showAvailabilityCalendar()
 }
+
+
 
 func cancelBooking(username string) {
 	var roomNo int
@@ -323,6 +343,15 @@ func userLogin() string{
 			fmt.Println("Username already exists. Please choose a different username.")
 			return "f"
 		}
+
+		// Hash the password before storing it
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			fmt.Println("Error hashing password:", err)
+			return "f"
+		}
+		// Store the hashed password in the logindata map
+		password = string(hashedPassword) // Convert hashed password back to string for storage
 		logindata[username] = password
 		saveBookingsTologin("login.json", logindata)
 		return username
@@ -344,13 +373,16 @@ func userLogin() string{
 			os.Exit(0) // Exit after viewing bookings
 		}
 
-		if password == logindata[username] {
-			fmt.Println("Login successful!")
-			return username
+		storedHash := logindata[username]
+		err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password))
+		if err == nil {
+    		fmt.Println("Login successful!")
+    	return username
 		} else {
-			fmt.Println("Invalid username or password. Please try again.")
-			return "f"
-		}
+    		fmt.Println("Invalid username or password. Please try again.")
+    		return "f"
+		}		
+
 
 	}
 	return "f"
@@ -379,4 +411,109 @@ func loadBookingsFromlogin(filename string) (map[string]string) {
 	}
 
 	return logindata
+}
+
+
+
+
+func showAvailabilityCalendar() {
+	// bookings := loadBookingsFromFile("bookingData.json")
+	if len(bookings) == 0 {
+		fmt.Println("No bookings available to generate calendar.")
+		return
+	}
+
+	var earliest, latest time.Time
+
+	// Step 1: Find earliest check-in and latest check-out
+	for _, b := range bookings {
+		if earliest.IsZero() || b.CheckIn.Before(earliest) {
+			earliest = b.CheckIn
+		}
+		if latest.IsZero() || b.CheckOut.After(latest) {
+			latest = b.CheckOut
+		}
+	}
+
+	// Step 2: Generate date range
+	dateRange := getDateRange(earliest, latest)
+
+	// Step 3: Print calendar header
+	fmt.Println("\nAvailability Calendar for Single Rooms:")
+	fmt.Printf("Room No |")
+	for _, d := range dateRange {
+		fmt.Printf(" %s ", d.Format("02")) // Just print day-of-month
+	}
+	fmt.Println()
+
+	// Step 4: Print row for each room
+	for roomNo := 101; roomNo <= 105; roomNo++ {
+		fmt.Printf("  %3d   |", roomNo)
+		booking, exists := bookings[roomNo]
+		for _, d := range dateRange {
+			if exists && isBookedOnDate(booking, d) {
+				fmt.Print("  B ")
+			} else {
+				fmt.Print("  F ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("\nAvailability Calendar for Double Rooms:")
+	fmt.Printf("Room No |")
+	for _, d := range dateRange {
+		fmt.Printf(" %s ", d.Format("02")) // Just print day-of-month
+	}
+	fmt.Println()
+
+	for roomNo := 201; roomNo <= 205; roomNo++ {
+		fmt.Printf("  %3d   |", roomNo)
+		booking, exists := bookings[roomNo]
+		for _, d := range dateRange {
+			if exists && isBookedOnDate(booking, d) {
+				fmt.Print("  B ")
+			} else {
+				fmt.Print("  F ")
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("\nAvailability Calendar for Suite Rooms:")
+	fmt.Printf("Room No |")
+	for _, d := range dateRange {
+		fmt.Printf(" %s ", d.Format("02")) // Just print day-of-month
+	}
+	fmt.Println()
+
+	for roomNo := 301; roomNo <= 305; roomNo++ {
+		fmt.Printf("  %3d   |", roomNo)
+		booking, exists := bookings[roomNo]
+		for _, d := range dateRange {
+			if exists && isBookedOnDate(booking, d) {
+				fmt.Print("  B ")
+			} else {
+				fmt.Print("  F ")
+			}
+		}
+		fmt.Println()
+	}
+}
+
+// Supporting functions below 👇
+
+func getDateRange(start, end time.Time) []time.Time {
+	dates := []time.Time{}
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		dates = append(dates, d)
+	}
+	return dates
+}
+
+func isBookedOnDate(b booking.Booking, date time.Time) bool {
+	date = date.Truncate(24 * time.Hour)
+	start := b.CheckIn.Truncate(24 * time.Hour)
+	end := b.CheckOut.Truncate(24 * time.Hour)
+	return !date.Before(start) && date.Before(end)
 }
