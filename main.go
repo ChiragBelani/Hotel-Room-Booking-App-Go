@@ -14,6 +14,10 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"bytes"
+	//"log"
+    "net/http"
+    //"github.com/go-gomail/gomail"
 )
 
 
@@ -128,7 +132,7 @@ func bookRoom(username string) {
 	bookings[roomNo] = book
 	mu.Unlock()
 	fmt.Printf("Room booked successfully! Room No: %d\n", roomNo)
-	go sendConfirmationEmail(name, email, roomNo, roomType, nights)
+	go sendConfirmationEmai(name, email, roomNo, roomType, nights)
 }
 
 func checkAvailableRoom(roomType string) bool {
@@ -259,17 +263,46 @@ func cancelBooking(username string) {
 	mu.Unlock() // Unlock the mutex after modifying bookings
 }
 
-func sendConfirmationEmail(name, email string, roomNo int, roomType string, nights int) {
+func sendConfirmationEmai(name, email string, roomNo int, roomType string, nights int) {
 	time.Sleep(10 * time.Second) 
 	fmt.Println("\n#########################################################################")
 	fmt.Printf("Sending confirmation email to %s (%s) for booking Room No: %d (%s) for %d nights.\n", name, email, roomNo, roomType, nights)
 	// Here you would implement the actual email sending logic
+
+	// For demonstration purposes, we'll use a mock email sending function
+	emailData := map[string]interface{}{
+		"name":     name,
+		"email":    email,
+		"roomNo":   roomNo,
+		"roomType": roomType,
+		"nights":   nights,
+	}
+	
+	jsonData, _ := json.Marshal(emailData)
+	resp, err := http.Post("http://localhost:9090/send-email", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		fmt.Println("❌ Could not reach email server:", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK {
+		fmt.Println("✅ Email sent successfully!")
+	} else {
+		fmt.Println("❌ Email server returned:", resp.Status)
+	}
+	
+
+    // fmt.Println("Server started at :8080")
+    // log.Fatal(http.ListenAndServe(":8080", nil))
+
 	// For now, we just print a message
 	fmt.Println("Confirmation email sent successfully!")
 	fmt.Println("#########################################################################")
 	saveBookingsToFile("bookingData.json", bookings)
 	
 }
+
 
 func saveBookingsToFile(filename string, bookings map[int]booking.Booking) error {
 	data, err := json.MarshalIndent(bookings, "", "  ")
