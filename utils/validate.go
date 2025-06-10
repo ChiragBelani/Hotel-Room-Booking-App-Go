@@ -11,7 +11,7 @@ func InputValidation(name, email, roomType string, nights int) bool {
 		fmt.Println("Name must be more than 2 characters.")
 		return false
 	}
-	if !(len(email) > 5 && strings.Contains(email, "@") && (email[len(email)-4:] == ".com" || email[len(email)-4:] == ".org" || email[len(email)-4:] == ".net")){
+	if !(len(email) > 5 && strings.Contains(email, "@") && (email[len(email)-4:] == ".com" || email[len(email)-4:] == ".org" || email[len(email)-4:] == ".edu")){
 		fmt.Println("Email must be valid and contain '@' and a domain like '.com', '.org', or '.net'.")
 		return false
 	}

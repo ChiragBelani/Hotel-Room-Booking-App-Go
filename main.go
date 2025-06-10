@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+	"math/rand"
 
 	"golang.org/x/crypto/bcrypt"
 	"bytes"
@@ -100,6 +101,7 @@ func bookRoom(username string) {
 	if !checkAvailableRoom(roomType){
 		return
 	}
+	
 
 	fmt.Print("Enter the nights: ")
 	fmt.Scan(&nights)
@@ -136,6 +138,7 @@ func bookRoom(username string) {
 }
 
 func checkAvailableRoom(roomType string) bool {
+	
 	switch roomType {
 	case "Single":
 		if singleRoomNoIdx < 5 {
@@ -226,6 +229,19 @@ func viewBookings() {
 	fmt.Printf("\nTotal Revenue from Bookings: $%d\n\n", totalRevenue)
 
 	showAvailabilityCalendar()
+
+	var choice int
+	fmt.Println("Do you want to download csv file for booking? (1 for Yes, 2 for No)")
+	fmt.Print("Please enter your choice: ")
+	fmt.Scan(&choice)
+	if choice == 1 {
+		err := validate.SaveBookingsToCSV(bookings, "bookings.csv")
+		if err != nil {
+			fmt.Println("Error saving bookings to CSV:", err)
+		} else {
+			fmt.Println("Bookings saved to bookings.csv successfully!")
+		}
+	}
 }
 
 
@@ -235,15 +251,17 @@ func cancelBooking(username string) {
 	fmt.Print("Enter the Room No to cancel booking: ")
 	fmt.Scan(&roomNo)
 
-	if bookings[roomNo].Username != username {
-		fmt.Println("You can only cancel your own bookings.")
+	booking, exists := bookings[roomNo]
+	if !exists || booking.Username != username {
+		fmt.Println("You can only cancel your own valid bookings.")
 		return
 	}
-	mu.Lock() // Lock the mutex to ensure thread safety
+	
 	if bookings[roomNo].RoomNo == 0 {
 		fmt.Println("No booking found for Room No:", roomNo)
 		return
 	}
+
 	if bookings[roomNo].RoomType == "Single" {
 		singleRoomNoIdx--
 		singleBookarray[roomNo-singleRoomNo] = 0
@@ -257,10 +275,13 @@ func cancelBooking(username string) {
 		fmt.Println("Invalid room type for cancellation.")
 		return
 	}
+	mu.TryLock()
+	// defer mu.Unlock()
 	delete(bookings, roomNo)
-	fmt.Println("Booking for Room No", roomNo, "has been cancelled successfully.")
 	saveBookingsToFile("bookingData.json", bookings)
-	mu.Unlock() // Unlock the mutex after modifying bookings
+	mu.Unlock()
+	fmt.Println("Booking for Room No", roomNo, "has been cancelled successfully.")
+	
 }
 
 func sendConfirmationEmai(name, email string, roomNo int, roomType string, nights int) {
@@ -279,7 +300,7 @@ func sendConfirmationEmai(name, email string, roomNo int, roomType string, night
 	}
 	
 	jsonData, _ := json.Marshal(emailData)
-	resp, err := http.Post("http://localhost:9090/send-email", "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post("http://localhost:9090/send-booking-email", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Println("❌ Could not reach email server:", err)
 		return
@@ -346,10 +367,13 @@ func updateBookArrayfromJson() {
 	for _, booking := range bookings {
 		if booking.RoomType == "Single" {
 			singleBookarray[booking.RoomNo-singleRoomNo] = 1
+			singleRoomNoIdx++
 		} else if booking.RoomType == "Double" {
 			doubleBookarray[booking.RoomNo-doubleRoomNo] = 1
+			doubleRoomNoIdx++
 		} else if booking.RoomType == "Suite" {
 			suiteBookarray[booking.RoomNo-suiteRoomNo] = 1
+			suiteRoomNoIdx++
 		}
 	}
 }
@@ -366,14 +390,57 @@ func userLogin() string{
 	fmt.Scan(&choice)
 	
 	if choice == 2 {
-		var username, password string
+		var username, password , email string
 		fmt.Println("Enter your details to sign up:")
 		fmt.Print("Username: ")
 		fmt.Scan(&username)
-		fmt.Print("Password: ")
+		fmt.Print("Email: ")
+		fmt.Scan(&email)
+
+		rand.Seed(time.Now().UnixNano())
+		var randomInt int = rand.Intn(10000)
+
+
+
+
+		fmt.Print("Set you Password: ")
 		fmt.Scan(&password)
+
+
 		if _, exists := logindata[username]; exists {
 			fmt.Println("Username already exists. Please choose a different username.")
+			return "f"
+		}
+		
+		// mail otp
+		emailData := map[string]interface{}{
+			"name":     username,
+			"email":    email,
+			"otp":	 randomInt,
+		}
+		
+		jsonData, _ := json.Marshal(emailData)
+		resp, err := http.Post("http://localhost:9090/send-otp-email", "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			fmt.Println("❌ Could not reach email server:", err)
+			return "f"
+		}
+		defer resp.Body.Close()
+		
+		if resp.StatusCode == http.StatusOK {
+			fmt.Println("✅ Email sent successfully!")
+		} else {
+			fmt.Println("❌ Email server returned:", resp.Status)
+		}
+		// mail 
+
+
+		var inputOtp string
+		fmt.Println("An OTP has been sent to your email:", email)
+		fmt.Print("Please enter the OTP to verify your email: ")
+		fmt.Scan(&inputOtp)
+		if inputOtp != fmt.Sprintf("%d", randomInt) {
+			fmt.Println("Invalid OTP. Please try again.")
 			return "f"
 		}
 

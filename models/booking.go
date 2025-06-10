@@ -19,3 +19,10 @@ type Booking struct {
 	CheckOut time.Time
 	Nights	int // Number of nights booked
 }
+
+type Login struct {
+	Username string
+	email string
+	Password string
+}
+
